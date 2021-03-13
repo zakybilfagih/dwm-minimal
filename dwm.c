@@ -179,6 +179,7 @@ static int gettextprop(Window w, Atom atom, char *text, unsigned int size);
 static void grabbuttons(Client *c, int focused);
 static void grabkeys(void);
 static void hide(Client *c);
+static void hidesinglewin(Client *c);
 static void incnmaster(const Arg *arg);
 static void keypress(XEvent *e);
 static void killclient(const Arg *arg);
@@ -1023,6 +1024,11 @@ hide(Client *c) {
 
 	focus(c->snext);
 	arrange(c->mon);
+}
+
+void
+hidesinglewin(Client *c) {
+	hide(c);
 	hiddenWinStack[++hiddenWinStackTop] = c;
 }
 
@@ -1142,12 +1148,13 @@ manage(Window w, XWindowAttributes *wa)
 	setclientstate(c, NormalState);
 	if (c->mon == selmon)
 		unfocus(selmon->sel, 0);
-	arrange(c->mon);
-	XMapWindow(dpy, c->win);
-	if (!selmon->sel || !selmon->sel->isfullscreen)
+	if (!selmon->sel || !selmon->sel->isfullscreen) {
+		c->mon->sel = c;
+		arrange(c->mon);
+		XMapWindow(dpy, c->win);
 		focus(NULL);
-	if (selmon->sel && selmon->sel->isfullscreen)
-		hide(c);
+	} else if (selmon->sel && selmon->sel->isfullscreen)
+		hidesinglewin(c);
 }
 
 void
@@ -1784,7 +1791,7 @@ tag(const Arg *arg)
 				if (c->tags == (arg->ui & TAGMASK)) {
 					if (c->isfullscreen)
 						setfullscreen(c, !c->isfullscreen);
-					hide(c);
+					hidesinglewin(c);
 				}
 			}
 		}
@@ -1927,7 +1934,7 @@ void hideotherwins(const Arg *arg) {
     c = (Client *)selmon->sel;
     for (i = selmon->clients; i; i = i->next) {
         if (i != c && ISVISIBLE(i)) {
-            hide(i);
+            hidesinglewin(i);
         }
     }
     focus(c);
